@@ -87,20 +87,20 @@ use cita_ng_proto::controller::{
     raw_transaction::Tx, rpc_service_client::RpcServiceClient, BlockNumber, Flag, RawTransaction,
 };
 use cita_ng_proto::kms::{
-    kms_service_client::KmsServiceClient, GenerateKeyPairRequest, HashDateRequest,
+    kms_service_client::KmsServiceClient, GenerateKeyPairRequest, HashDataRequest,
     SignMessageRequest,
 };
 use prost::Message;
 use rand::Rng;
-use tonic::Request;
 use std::time::Duration;
+use tonic::Request;
 
 fn build_tx(data: Vec<u8>) -> Transaction {
     Transaction {
         version: 0,
         to: vec![1u8; 21],
         nonce: "test".to_owned(),
-        quota: 300000,
+        quota: 300_000,
         valid_until_block: 80,
         data,
         value: vec![0u8; 32],
@@ -139,11 +139,11 @@ fn send_tx(
         // calc tx hash
         let mut tx_bytes = Vec::new();
         tx.encode(&mut tx_bytes).unwrap();
-        let request = HashDateRequest {
+        let request = HashDataRequest {
             key_id,
             data: tx_bytes,
         };
-        let ret = rt.block_on(kms_client.hash_date(request)).unwrap();
+        let ret = rt.block_on(kms_client.hash_data(request)).unwrap();
         let tx_hash = ret.into_inner().hash;
 
         // sign tx hash
