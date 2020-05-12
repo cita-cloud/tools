@@ -94,6 +94,7 @@ use prost::Message;
 use rand::Rng;
 use std::time::Duration;
 use tonic::Request;
+use cita_ng_proto::controller::raw_transaction::Tx::NormalTx;
 
 fn build_tx(data: Vec<u8>) -> Transaction {
     Transaction {
@@ -241,30 +242,38 @@ fn run(opts: RunOpts) {
 
     assert_eq!(all_hash_list.len() as u64, total_tx);
 
-    // get block number
-    let request = Request::new(Flag { flag: false });
-    let ret = rt.block_on(rpc_client.get_block_number(request)).unwrap();
-    let end_block_number = ret.into_inner().block_number;
-    info!("block_number is {} after start", end_block_number);
-
     for hash in all_hash_list {
         // get transaction by hash
         let request = Request::new(Hash { hash });
         let ret = rt.block_on(rpc_client.get_transaction(request)).unwrap();
         let raw_tx = ret.into_inner();
-        info!("raw_tx {:?}", raw_tx);
+        let nonce =  match raw_tx.tx.unwrap() {
+            NormalTx(tx) => {
+                tx.transaction.unwrap().nonce
+            }
+            _ => {
+                panic!("there are no utxo tx");
+            }
+        };
+        assert_eq!(&nonce, "test");
     }
 
-    info!("wait 100s ...");
-    thread::sleep(Duration::new(100, 0));
+    info!("wait 400s ...");
+    thread::sleep(Duration::new(400, 0));
 
-    for h in start_block_number..(end_block_number + 2) {
+    // get block number
+    let request = Request::new(Flag { flag: false });
+    let ret = rt.block_on(rpc_client.get_block_number(request)).unwrap();
+    let end_block_number = ret.into_inner().block_number;
+    info!("block_number is {}", end_block_number);
+
+    for h in start_block_number..end_block_number {
         // get block by height
         let request = Request::new(BlockNumber { block_number: h });
         let ret = rt
             .block_on(rpc_client.get_block_by_number(request))
             .unwrap();
         let block = ret.into_inner();
-        info!("height {} block {:?}", h, block);
+        info!("height {} block include {} txs", h, block.body.unwrap().tx_hashes.len());
     }
 }
