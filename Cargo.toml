@@ -1,3 +1,4 @@
 [workspace]
-members = ["send-tx"
+members = ["send-tx",
+"send-invalid-tx",
 ]

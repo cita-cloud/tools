@@ -71,7 +71,7 @@ fn main() {
         }
         SubCommand::Run(opts) => {
             // init log4rs
-            log4rs::init_file("send-tx-log4rs.yaml", Default::default()).unwrap();
+            log4rs::init_file("tools-log4rs.yaml", Default::default()).unwrap();
             info!("grpc port of kms service: {}", opts.kms_port);
             info!("grpc port of controller service: {}", opts.controller_port);
             info!("thread number to send tx: {}", opts.thread_num);
@@ -83,6 +83,7 @@ fn main() {
 
 use cita_ng_proto::blockchain::{Transaction, UnverifiedTransaction, Witness};
 use cita_ng_proto::common::Hash;
+use cita_ng_proto::controller::raw_transaction::Tx::NormalTx;
 use cita_ng_proto::controller::{
     raw_transaction::Tx, rpc_service_client::RpcServiceClient, BlockNumber, Flag, RawTransaction,
 };
@@ -94,15 +95,14 @@ use prost::Message;
 use rand::Rng;
 use std::time::Duration;
 use tonic::Request;
-use cita_ng_proto::controller::raw_transaction::Tx::NormalTx;
 
-fn build_tx(data: Vec<u8>) -> Transaction {
+fn build_tx(data: Vec<u8>, start_block_number: u64) -> Transaction {
     Transaction {
         version: 0,
         to: vec![1u8; 21],
         nonce: "test".to_owned(),
         quota: 300_000,
-        valid_until_block: 80,
+        valid_until_block: start_block_number + 99,
         data,
         value: vec![0u8; 32],
         chain_id: vec![0u8; 32],
@@ -115,6 +115,7 @@ fn send_tx(
     kms_port: String,
     controller_port: String,
     tx_num_per_thread: u64,
+    start_block_number: u64,
 ) -> Vec<Vec<u8>> {
     let mut rt = Runtime::new().unwrap();
 
@@ -135,7 +136,7 @@ fn send_tx(
             data.push(v);
         }
 
-        let tx = build_tx(data);
+        let tx = build_tx(data, start_block_number);
 
         // calc tx hash
         let mut tx_bytes = Vec::new();
@@ -229,6 +230,7 @@ fn run(opts: RunOpts) {
                 kms_port.clone(),
                 controller_port.clone(),
                 tx_num_per_thread,
+                start_block_number,
             )
         });
         thread_handlers.push(handler);
@@ -247,10 +249,8 @@ fn run(opts: RunOpts) {
         let request = Request::new(Hash { hash });
         let ret = rt.block_on(rpc_client.get_transaction(request)).unwrap();
         let raw_tx = ret.into_inner();
-        let nonce =  match raw_tx.tx.unwrap() {
-            NormalTx(tx) => {
-                tx.transaction.unwrap().nonce
-            }
+        let nonce = match raw_tx.tx.unwrap() {
+            NormalTx(tx) => tx.transaction.unwrap().nonce,
             _ => {
                 panic!("there are no utxo tx");
             }
@@ -274,6 +274,10 @@ fn run(opts: RunOpts) {
             .block_on(rpc_client.get_block_by_number(request))
             .unwrap();
         let block = ret.into_inner();
-        info!("height {} block include {} txs", h, block.body.unwrap().tx_hashes.len());
+        info!(
+            "height {} block include {} txs",
+            h,
+            block.body.unwrap().tx_hashes.len()
+        );
     }
 }
