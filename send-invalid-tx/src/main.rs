@@ -72,16 +72,118 @@ fn main() {
     }
 }
 
-use cita_ng_proto::blockchain::{Transaction, UnverifiedTransaction, Witness};
+use cita_ng_proto::blockchain::{Transaction, UnverifiedTransaction, Witness, UtxoTransaction, UnverifiedUtxoTransaction};
 use cita_ng_proto::controller::{
-    raw_transaction::Tx, rpc_service_client::RpcServiceClient, Flag, RawTransaction,
+    raw_transaction::Tx, rpc_service_client::RpcServiceClient, Flag, RawTransaction, SystemConfig,
 };
 use cita_ng_proto::kms::{
     kms_service_client::KmsServiceClient, GenerateKeyPairRequest, HashDataRequest,
     SignMessageRequest,
 };
+use cita_ng_proto::common::Empty;
 use prost::Message;
 use tonic::Request;
+
+fn build_utxo_tx(sys_config: SystemConfig) -> UtxoTransaction {
+    UtxoTransaction {
+        version: sys_config.version,
+        pre_tx_hash: sys_config.admin_pre_hash,
+        output: vec![1u8; 21],
+        lock_id: 1_002
+    }
+}
+
+fn invalid_version_utxo_tx(sys_config: SystemConfig) -> UtxoTransaction {
+    UtxoTransaction {
+        version: sys_config.version + 1,
+        pre_tx_hash: sys_config.admin_pre_hash,
+        output: vec![1u8; 21],
+        lock_id: 1_002
+    }
+}
+
+fn invalid_lock_id_utxo_tx(sys_config: SystemConfig) -> UtxoTransaction {
+    UtxoTransaction {
+        version: sys_config.version,
+        pre_tx_hash: sys_config.admin_pre_hash,
+        output: vec![1u8; 21],
+        lock_id: 1_005
+    }
+}
+
+fn invalid_pre_hash_utxo_tx(sys_config: SystemConfig) -> UtxoTransaction {
+    UtxoTransaction {
+        version: sys_config.version,
+        pre_tx_hash: vec![0u8],
+        output: vec![2u8; 21],
+        lock_id: 1_002
+    }
+}
+
+
+fn send_utxo_tx(
+    address: Vec<u8>,
+    key_id: u64,
+    kms_port: String,
+    controller_port: String,
+    tx: UtxoTransaction,
+) -> String {
+    let mut rt = Runtime::new().unwrap();
+
+    let kms_addr = format!("http://127.0.0.1:{}", kms_port);
+    let controller_addr = format!("http://127.0.0.1:{}", controller_port);
+
+    let mut kms_client = rt.block_on(KmsServiceClient::connect(kms_addr)).unwrap();
+    let mut rpc_client = rt
+        .block_on(RpcServiceClient::connect(controller_addr))
+        .unwrap();
+
+    // calc tx hash
+    let mut tx_bytes = Vec::new();
+    tx.encode(&mut tx_bytes).unwrap();
+    let request = HashDataRequest {
+        key_id,
+        data: tx_bytes,
+    };
+    let ret = rt.block_on(kms_client.hash_data(request)).unwrap();
+    let tx_hash = ret.into_inner().hash;
+
+    // sign tx hash
+    let request = Request::new(SignMessageRequest {
+        key_id,
+        msg: tx_hash.clone(),
+    });
+    let ret = rt.block_on(kms_client.sign_message(request)).unwrap();
+    let signature = ret.into_inner().signature;
+
+    let witness = Witness {
+        signature,
+        sender: address,
+    };
+
+    let unverified_tx = UnverifiedUtxoTransaction {
+        transaction: Some(tx),
+        transaction_hash: tx_hash,
+        witnesses: vec![witness],
+    };
+
+    let raw_tx = RawTransaction {
+        tx: Some(Tx::UtxoTx(unverified_tx)),
+    };
+
+    let ret = rt.block_on(rpc_client.send_raw_transaction(raw_tx));
+    match ret {
+        Ok(response) => {
+            info!("tx hash {:?}", response.into_inner().hash);
+            "".to_owned()
+        }
+        Err(status) => {
+            info!("err {}", status.message());
+            status.message().to_owned()
+        }
+    }
+}
+
 
 fn build_tx(start_block_number: u64) -> Transaction {
     Transaction {
@@ -269,6 +371,12 @@ fn run(opts: RunOpts) {
     let start_block_number = ret.into_inner().block_number;
     info!("block_number is {} before start", start_block_number);
 
+    // get system config
+    let request = Request::new(Empty { });
+    let ret = rt.block_on(rpc_client.get_system_config(request)).unwrap();
+    let sys_config = ret.into_inner();
+    info!("sys_config is {:?} before start", sys_config);
+
     // ok
     assert_eq!(
         send_tx(
@@ -357,5 +465,49 @@ fn run(opts: RunOpts) {
             invalid_chain_id_tx(start_block_number),
         ),
         "Invalid chain_id".to_owned()
+    );
+
+    assert_eq!(
+        send_utxo_tx(
+            address.clone(),
+            key_id,
+            kms_port.clone(),
+            controller_port.clone(),
+            build_utxo_tx(sys_config.clone()),
+        ),
+        "".to_owned()
+    );
+
+    assert_eq!(
+        send_utxo_tx(
+            address.clone(),
+            key_id,
+            kms_port.clone(),
+            controller_port.clone(),
+            invalid_version_utxo_tx(sys_config.clone()),
+        ),
+        "Invalid version".to_owned()
+    );
+
+    assert_eq!(
+        send_utxo_tx(
+            address.clone(),
+            key_id,
+            kms_port.clone(),
+            controller_port.clone(),
+            invalid_lock_id_utxo_tx(sys_config.clone()),
+        ),
+        "Invalid lock_id".to_owned()
+    );
+
+    assert_eq!(
+        send_utxo_tx(
+            address.clone(),
+            key_id,
+            kms_port.clone(),
+            controller_port.clone(),
+            invalid_pre_hash_utxo_tx(sys_config.clone()),
+        ),
+        "Invalid pre_tx_hash".to_owned()
     );
 }
