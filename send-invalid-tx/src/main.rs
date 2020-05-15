@@ -72,7 +72,10 @@ fn main() {
     }
 }
 
-use cita_ng_proto::blockchain::{Transaction, UnverifiedTransaction, Witness, UtxoTransaction, UnverifiedUtxoTransaction};
+use cita_ng_proto::blockchain::{
+    Transaction, UnverifiedTransaction, UnverifiedUtxoTransaction, UtxoTransaction, Witness,
+};
+use cita_ng_proto::common::Empty;
 use cita_ng_proto::controller::{
     raw_transaction::Tx, rpc_service_client::RpcServiceClient, Flag, RawTransaction, SystemConfig,
 };
@@ -80,7 +83,6 @@ use cita_ng_proto::kms::{
     kms_service_client::KmsServiceClient, GenerateKeyPairRequest, HashDataRequest,
     SignMessageRequest,
 };
-use cita_ng_proto::common::Empty;
 use prost::Message;
 use tonic::Request;
 
@@ -89,7 +91,7 @@ fn build_utxo_tx(sys_config: SystemConfig) -> UtxoTransaction {
         version: sys_config.version,
         pre_tx_hash: sys_config.admin_pre_hash,
         output: vec![1u8; 21],
-        lock_id: 1_002
+        lock_id: 1_002,
     }
 }
 
@@ -98,7 +100,7 @@ fn invalid_version_utxo_tx(sys_config: SystemConfig) -> UtxoTransaction {
         version: sys_config.version + 1,
         pre_tx_hash: sys_config.admin_pre_hash,
         output: vec![1u8; 21],
-        lock_id: 1_002
+        lock_id: 1_002,
     }
 }
 
@@ -107,7 +109,7 @@ fn invalid_lock_id_utxo_tx(sys_config: SystemConfig) -> UtxoTransaction {
         version: sys_config.version,
         pre_tx_hash: sys_config.admin_pre_hash,
         output: vec![1u8; 21],
-        lock_id: 1_005
+        lock_id: 1_005,
     }
 }
 
@@ -116,10 +118,9 @@ fn invalid_pre_hash_utxo_tx(sys_config: SystemConfig) -> UtxoTransaction {
         version: sys_config.version,
         pre_tx_hash: vec![0u8],
         output: vec![2u8; 21],
-        lock_id: 1_002
+        lock_id: 1_002,
     }
 }
-
 
 fn send_utxo_tx(
     address: Vec<u8>,
@@ -183,7 +184,6 @@ fn send_utxo_tx(
         }
     }
 }
-
 
 fn build_tx(start_block_number: u64) -> Transaction {
     Transaction {
@@ -372,7 +372,7 @@ fn run(opts: RunOpts) {
     info!("block_number is {} before start", start_block_number);
 
     // get system config
-    let request = Request::new(Empty { });
+    let request = Request::new(Empty {});
     let ret = rt.block_on(rpc_client.get_system_config(request)).unwrap();
     let sys_config = ret.into_inner();
     info!("sys_config is {:?} before start", sys_config);
@@ -502,11 +502,11 @@ fn run(opts: RunOpts) {
 
     assert_eq!(
         send_utxo_tx(
-            address.clone(),
+            address,
             key_id,
-            kms_port.clone(),
-            controller_port.clone(),
-            invalid_pre_hash_utxo_tx(sys_config.clone()),
+            kms_port,
+            controller_port,
+            invalid_pre_hash_utxo_tx(sys_config),
         ),
         "Invalid pre_tx_hash".to_owned()
     );
