@@ -32,11 +32,11 @@ enum SubCommand {
 #[derive(Clap)]
 struct GenOpts {
     /// Sets name of the chain.
-    #[clap(short = "c", long = "chain_name", default_value = "test-chain")]
+    #[clap(short = 'c', long = "chain_name", default_value = "test-chain")]
     chain_name: String,
     /// Sets node list of the chain.
     #[clap(
-        short = "n",
+        short = 'n',
         long = "node_list",
         default_value = "127.0.0.1:40000;127.0.0.1:40001"
     )]

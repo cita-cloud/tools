@@ -22,7 +22,7 @@ const GIT_VERSION: &str = git_version!(
     args = ["--tags", "--always", "--dirty=-modified"],
     fallback = "unknown"
 );
-const GIT_HOMEPAGE: &str = "https://github.com/rink1969/cita_ng_tools";
+const GIT_HOMEPAGE: &str = "https://github.com/cita-cloud/tools";
 
 /// network service
 #[derive(Clap)]
@@ -46,16 +46,16 @@ enum SubCommand {
 #[derive(Clap)]
 struct RunOpts {
     /// Sets grpc port of kms service.
-    #[clap(short = "k", long = "kms_port", default_value = "50005")]
+    #[clap(short = 'k', long = "kms_port", default_value = "50005")]
     kms_port: String,
     /// Sets grpc port of controller service.
-    #[clap(short = "c", long = "controller_port", default_value = "50004")]
+    #[clap(short = 'c', long = "controller_port", default_value = "50004")]
     controller_port: String,
     /// Sets thread number of send tx.
-    #[clap(short = "t", long = "thread_num", default_value = "4")]
+    #[clap(short = 't', long = "thread_num", default_value = "4")]
     thread_num: String,
     /// Sets number of tx per thread to send.
-    #[clap(short = "n", long = "tx_num_per_thread", default_value = "1000")]
+    #[clap(short = 'n', long = "tx_num_per_thread", default_value = "1000")]
     tx_num_per_thread: String,
 }
 
@@ -81,13 +81,13 @@ fn main() {
     }
 }
 
-use cita_ng_proto::blockchain::{Transaction, UnverifiedTransaction, Witness};
-use cita_ng_proto::common::Hash;
-use cita_ng_proto::controller::raw_transaction::Tx::NormalTx;
-use cita_ng_proto::controller::{
+use cita_cloud_proto::blockchain::{Transaction, UnverifiedTransaction, Witness};
+use cita_cloud_proto::common::Hash;
+use cita_cloud_proto::controller::raw_transaction::Tx::NormalTx;
+use cita_cloud_proto::controller::{
     raw_transaction::Tx, rpc_service_client::RpcServiceClient, BlockNumber, Flag, RawTransaction,
 };
-use cita_ng_proto::kms::{
+use cita_cloud_proto::kms::{
     kms_service_client::KmsServiceClient, GenerateKeyPairRequest, HashDataRequest,
     SignMessageRequest,
 };
