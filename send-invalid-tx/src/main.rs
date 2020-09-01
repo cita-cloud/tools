@@ -185,7 +185,7 @@ fn send_utxo_tx(
     }
 }
 
-fn build_tx(start_block_number: u64) -> Transaction {
+fn build_tx(start_block_number: u64, chain_id: Vec<u8>) -> Transaction {
     Transaction {
         version: 0,
         to: vec![1u8; 21],
@@ -194,11 +194,11 @@ fn build_tx(start_block_number: u64) -> Transaction {
         valid_until_block: start_block_number + 80,
         data: vec![],
         value: vec![0u8; 32],
-        chain_id: vec![0u8; 32],
+        chain_id,
     }
 }
 
-fn invalid_version_tx(start_block_number: u64) -> Transaction {
+fn invalid_version_tx(start_block_number: u64, chain_id: Vec<u8>) -> Transaction {
     Transaction {
         version: 1,
         to: vec![1u8; 21],
@@ -207,11 +207,11 @@ fn invalid_version_tx(start_block_number: u64) -> Transaction {
         valid_until_block: start_block_number + 80,
         data: vec![],
         value: vec![0u8; 32],
-        chain_id: vec![0u8; 32],
+        chain_id,
     }
 }
 
-fn invalid_nonce_tx(start_block_number: u64) -> Transaction {
+fn invalid_nonce_tx(start_block_number: u64, chain_id: Vec<u8>) -> Transaction {
     Transaction {
         version: 0,
         to: vec![1u8; 21],
@@ -220,11 +220,11 @@ fn invalid_nonce_tx(start_block_number: u64) -> Transaction {
         valid_until_block: start_block_number + 80,
         data: vec![],
         value: vec![0u8; 32],
-        chain_id: vec![0u8; 32],
+        chain_id,
     }
 }
 
-fn invalid_vub_tx1(start_block_number: u64) -> Transaction {
+fn invalid_vub_tx1(start_block_number: u64, chain_id: Vec<u8>) -> Transaction {
     Transaction {
         version: 0,
         to: vec![1u8; 21],
@@ -233,11 +233,11 @@ fn invalid_vub_tx1(start_block_number: u64) -> Transaction {
         valid_until_block: start_block_number,
         data: vec![],
         value: vec![0u8; 32],
-        chain_id: vec![0u8; 32],
+        chain_id,
     }
 }
 
-fn invalid_vub_tx2(start_block_number: u64) -> Transaction {
+fn invalid_vub_tx2(start_block_number: u64, chain_id: Vec<u8>) -> Transaction {
     Transaction {
         version: 0,
         to: vec![1u8; 21],
@@ -246,11 +246,11 @@ fn invalid_vub_tx2(start_block_number: u64) -> Transaction {
         valid_until_block: start_block_number + 200,
         data: vec![],
         value: vec![0u8; 32],
-        chain_id: vec![0u8; 32],
+        chain_id,
     }
 }
 
-fn invalid_value_tx(start_block_number: u64) -> Transaction {
+fn invalid_value_tx(start_block_number: u64, chain_id: Vec<u8>) -> Transaction {
     Transaction {
         version: 0,
         to: vec![1u8; 21],
@@ -259,7 +259,7 @@ fn invalid_value_tx(start_block_number: u64) -> Transaction {
         valid_until_block: start_block_number + 80,
         data: vec![],
         value: vec![0u8; 31],
-        chain_id: vec![0u8; 32],
+        chain_id,
     }
 }
 
@@ -375,6 +375,7 @@ fn run(opts: RunOpts) {
     let request = Request::new(Empty {});
     let ret = rt.block_on(rpc_client.get_system_config(request)).unwrap();
     let sys_config = ret.into_inner();
+    let chain_id = sys_config.chain_id.clone();
     info!("sys_config is {:?} before start", sys_config);
 
     // ok
@@ -384,7 +385,7 @@ fn run(opts: RunOpts) {
             key_id,
             kms_port.clone(),
             controller_port.clone(),
-            build_tx(start_block_number),
+            build_tx(start_block_number, chain_id.clone()),
         ),
         "".to_owned()
     );
@@ -396,7 +397,7 @@ fn run(opts: RunOpts) {
             key_id,
             kms_port.clone(),
             controller_port.clone(),
-            build_tx(start_block_number),
+            build_tx(start_block_number, chain_id.clone()),
         ),
         "dup".to_owned()
     );
@@ -407,7 +408,7 @@ fn run(opts: RunOpts) {
             key_id,
             kms_port.clone(),
             controller_port.clone(),
-            invalid_version_tx(start_block_number),
+            invalid_version_tx(start_block_number, chain_id.clone()),
         ),
         "Invalid version".to_owned()
     );
@@ -418,7 +419,7 @@ fn run(opts: RunOpts) {
             key_id,
             kms_port.clone(),
             controller_port.clone(),
-            invalid_nonce_tx(start_block_number),
+            invalid_nonce_tx(start_block_number, chain_id.clone()),
         ),
         "Invalid nonce".to_owned()
     );
@@ -429,7 +430,7 @@ fn run(opts: RunOpts) {
             key_id,
             kms_port.clone(),
             controller_port.clone(),
-            invalid_vub_tx1(start_block_number),
+            invalid_vub_tx1(start_block_number, chain_id.clone()),
         ),
         "Invalid valid_until_block".to_owned()
     );
@@ -440,7 +441,7 @@ fn run(opts: RunOpts) {
             key_id,
             kms_port.clone(),
             controller_port.clone(),
-            invalid_vub_tx2(start_block_number),
+            invalid_vub_tx2(start_block_number, chain_id.clone()),
         ),
         "Invalid valid_until_block".to_owned()
     );
@@ -451,7 +452,7 @@ fn run(opts: RunOpts) {
             key_id,
             kms_port.clone(),
             controller_port.clone(),
-            invalid_value_tx(start_block_number),
+            invalid_value_tx(start_block_number, chain_id.clone()),
         ),
         "Invalid value".to_owned()
     );
