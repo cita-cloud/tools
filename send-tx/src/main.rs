@@ -82,7 +82,7 @@ fn main() {
 }
 
 use cita_cloud_proto::blockchain::{Transaction, UnverifiedTransaction, Witness};
-use cita_cloud_proto::common::Hash;
+use cita_cloud_proto::common::{Empty, Hash};
 use cita_cloud_proto::controller::raw_transaction::Tx::NormalTx;
 use cita_cloud_proto::controller::{
     raw_transaction::Tx, rpc_service_client::RpcServiceClient, BlockNumber, Flag, RawTransaction,
@@ -96,7 +96,7 @@ use rand::Rng;
 use std::time::Duration;
 use tonic::Request;
 
-fn build_tx(data: Vec<u8>, start_block_number: u64) -> Transaction {
+fn build_tx(data: Vec<u8>, start_block_number: u64, chain_id: Vec<u8>) -> Transaction {
     Transaction {
         version: 0,
         to: vec![1u8; 21],
@@ -105,7 +105,7 @@ fn build_tx(data: Vec<u8>, start_block_number: u64) -> Transaction {
         valid_until_block: start_block_number + 99,
         data,
         value: vec![0u8; 32],
-        chain_id: vec![0u8; 32],
+        chain_id,
     }
 }
 
@@ -116,6 +116,7 @@ fn send_tx(
     controller_port: String,
     tx_num_per_thread: u64,
     start_block_number: u64,
+    chain_id: Vec<u8>,
 ) -> Vec<Vec<u8>> {
     let mut rt = Runtime::new().unwrap();
 
@@ -136,7 +137,7 @@ fn send_tx(
             data.push(v);
         }
 
-        let tx = build_tx(data, start_block_number);
+        let tx = build_tx(data, start_block_number, chain_id.clone());
 
         // calc tx hash
         let mut tx_bytes = Vec::new();
@@ -192,8 +193,8 @@ fn run(opts: RunOpts) {
 
     let mut rt = Runtime::new().unwrap();
 
-    let kms_addr = format!("http://127.0.0.1:{}", kms_port.clone());
-    let controller_addr = format!("http://127.0.0.1:{}", controller_port.clone());
+    let kms_addr = format!("http://127.0.0.1:{}", kms_port);
+    let controller_addr = format!("http://127.0.0.1:{}", controller_port);
 
     let mut kms_client = rt.block_on(KmsServiceClient::connect(kms_addr)).unwrap();
     let mut rpc_client = rt
@@ -212,6 +213,12 @@ fn run(opts: RunOpts) {
 
     info!("key id is {}", key_id);
 
+    // get system config
+    let request = Request::new(Empty {});
+    let ret = rt.block_on(rpc_client.get_system_config(request)).unwrap();
+    let sys_config = ret.into_inner();
+    let chain_id = sys_config.chain_id;
+
     // get block number
     let request = Request::new(Flag { flag: false });
     let ret = rt.block_on(rpc_client.get_block_number(request)).unwrap();
@@ -223,6 +230,7 @@ fn run(opts: RunOpts) {
         let kms_port = kms_port.clone();
         let address = address.clone();
         let controller_port = controller_port.clone();
+        let chain_id = chain_id.clone();
         let handler = thread::spawn(move || {
             send_tx(
                 address.clone(),
@@ -231,6 +239,7 @@ fn run(opts: RunOpts) {
                 controller_port.clone(),
                 tx_num_per_thread,
                 start_block_number,
+                chain_id,
             )
         });
         thread_handlers.push(handler);
