@@ -222,7 +222,7 @@ fn run(opts: RunOpts) {
     // get block number
     let request = Request::new(Flag { flag: false });
     let ret = rt.block_on(rpc_client.get_block_number(request)).unwrap();
-    let start_block_number = ret.into_inner().block_number;
+    let mut start_block_number = ret.into_inner().block_number;
     info!("block_number is {} before start", start_block_number);
 
     info!("start send tx {} with {} thread", total_tx, thread_num);
@@ -267,26 +267,34 @@ fn run(opts: RunOpts) {
         assert_eq!(&nonce, "test");
     }
 
-    info!("wait 400s ...");
-    thread::sleep(Duration::new(400, 0));
+    let mut total_finalized_tx = 0;
+    loop {
+        thread::sleep(Duration::new(10, 0));
 
-    // get block number
-    let request = Request::new(Flag { flag: false });
-    let ret = rt.block_on(rpc_client.get_block_number(request)).unwrap();
-    let end_block_number = ret.into_inner().block_number;
-    info!("block_number is {}", end_block_number);
+        // get block number
+        let request = Request::new(Flag { flag: false });
+        let ret = rt.block_on(rpc_client.get_block_number(request)).unwrap();
+        let end_block_number = ret.into_inner().block_number;
 
-    for h in start_block_number..end_block_number {
-        // get block by height
-        let request = Request::new(BlockNumber { block_number: h });
-        let ret = rt
-            .block_on(rpc_client.get_block_by_number(request))
-            .unwrap();
-        let block = ret.into_inner();
-        info!(
-            "height {} block include {} txs",
-            h,
-            block.body.unwrap().tx_hashes.len()
-        );
+        for h in start_block_number..end_block_number {
+            // get block by height
+            let request = Request::new(BlockNumber { block_number: h });
+            let ret = rt
+                .block_on(rpc_client.get_block_by_number(request))
+                .unwrap();
+            let block = ret.into_inner();
+            let block_tx_size = block.body.unwrap().tx_hashes.len();
+            total_finalized_tx += block_tx_size;
+            info!(
+                "height {} block include {} txs, total finalized tx {}",
+                h, block_tx_size, total_finalized_tx
+            );
+        }
+
+        if total_finalized_tx as u64 == total_tx {
+            break;
+        }
+
+        start_block_number = end_block_number;
     }
 }
