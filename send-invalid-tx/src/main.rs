@@ -44,12 +44,16 @@ enum SubCommand {
 /// A subcommand for run
 #[derive(Clap)]
 struct RunOpts {
-    /// Sets grpc port of kms service.
-    #[clap(short = 'k', long = "kms_port", default_value = "50005")]
-    kms_port: String,
-    /// Sets grpc port of controller service.
-    #[clap(short = 'c', long = "controller_port", default_value = "50004")]
-    controller_port: String,
+    /// Sets grpc address of kms service.
+    #[clap(short = 'k', long = "kms_address", default_value = "localhost:50005")]
+    kms_address: String,
+    /// Sets grpc address of controller service.
+    #[clap(
+        short = 'c',
+        long = "controller_address",
+        default_value = "localhost:50004"
+    )]
+    controller_address: String,
 }
 
 fn main() {
@@ -65,8 +69,8 @@ fn main() {
         SubCommand::Run(opts) => {
             // init log4rs
             log4rs::init_file("tools-log4rs.yaml", Default::default()).unwrap();
-            info!("grpc port of kms service: {}", opts.kms_port);
-            info!("grpc port of controller service: {}", opts.controller_port);
+            info!("grpc address of kms service: {}", opts.kms_address);
+            info!("grpc address of controller service: {}", opts.kms_address);
             run(opts);
         }
     }
@@ -125,14 +129,14 @@ fn invalid_pre_hash_utxo_tx(sys_config: SystemConfig) -> UtxoTransaction {
 fn send_utxo_tx(
     address: Vec<u8>,
     key_id: u64,
-    kms_port: String,
-    controller_port: String,
+    kms_address: String,
+    controller_address: String,
     tx: UtxoTransaction,
 ) -> String {
     let mut rt = Runtime::new().unwrap();
 
-    let kms_addr = format!("http://127.0.0.1:{}", kms_port);
-    let controller_addr = format!("http://127.0.0.1:{}", controller_port);
+    let kms_addr = format!("http://{}", kms_address);
+    let controller_addr = format!("http://{}", controller_address);
 
     let mut kms_client = rt.block_on(KmsServiceClient::connect(kms_addr)).unwrap();
     let mut rpc_client = rt
@@ -279,14 +283,14 @@ fn invalid_chain_id_tx(start_block_number: u64) -> Transaction {
 fn send_tx(
     address: Vec<u8>,
     key_id: u64,
-    kms_port: String,
-    controller_port: String,
+    kms_address: String,
+    controller_address: String,
     tx: Transaction,
 ) -> String {
     let mut rt = Runtime::new().unwrap();
 
-    let kms_addr = format!("http://127.0.0.1:{}", kms_port);
-    let controller_addr = format!("http://127.0.0.1:{}", controller_port);
+    let kms_addr = format!("http://{}", kms_address);
+    let controller_addr = format!("http://{}", controller_address);
 
     let mut kms_client = rt.block_on(KmsServiceClient::connect(kms_addr)).unwrap();
     let mut rpc_client = rt
@@ -340,13 +344,13 @@ fn send_tx(
 }
 
 fn run(opts: RunOpts) {
-    let kms_port = opts.kms_port;
-    let controller_port = opts.controller_port;
+    let kms_address = opts.kms_address;
+    let controller_address = opts.controller_address;
 
     let mut rt = Runtime::new().unwrap();
 
-    let kms_addr = format!("http://127.0.0.1:{}", kms_port.clone());
-    let controller_addr = format!("http://127.0.0.1:{}", controller_port.clone());
+    let kms_addr = format!("http://{}", kms_address.clone());
+    let controller_addr = format!("http://{}", controller_address.clone());
 
     let mut kms_client = rt.block_on(KmsServiceClient::connect(kms_addr)).unwrap();
     let mut rpc_client = rt
@@ -383,8 +387,8 @@ fn run(opts: RunOpts) {
         send_tx(
             address.clone(),
             key_id,
-            kms_port.clone(),
-            controller_port.clone(),
+            kms_address.clone(),
+            controller_address.clone(),
             build_tx(start_block_number, chain_id.clone()),
         ),
         "".to_owned()
@@ -395,8 +399,8 @@ fn run(opts: RunOpts) {
         send_tx(
             address.clone(),
             key_id,
-            kms_port.clone(),
-            controller_port.clone(),
+            kms_address.clone(),
+            controller_address.clone(),
             build_tx(start_block_number, chain_id.clone()),
         ),
         "dup".to_owned()
@@ -406,8 +410,8 @@ fn run(opts: RunOpts) {
         send_tx(
             address.clone(),
             key_id,
-            kms_port.clone(),
-            controller_port.clone(),
+            kms_address.clone(),
+            controller_address.clone(),
             invalid_version_tx(start_block_number, chain_id.clone()),
         ),
         "Invalid version".to_owned()
@@ -417,8 +421,8 @@ fn run(opts: RunOpts) {
         send_tx(
             address.clone(),
             key_id,
-            kms_port.clone(),
-            controller_port.clone(),
+            kms_address.clone(),
+            controller_address.clone(),
             invalid_nonce_tx(start_block_number, chain_id.clone()),
         ),
         "Invalid nonce".to_owned()
@@ -428,8 +432,8 @@ fn run(opts: RunOpts) {
         send_tx(
             address.clone(),
             key_id,
-            kms_port.clone(),
-            controller_port.clone(),
+            kms_address.clone(),
+            controller_address.clone(),
             invalid_vub_tx1(start_block_number, chain_id.clone()),
         ),
         "Invalid valid_until_block".to_owned()
@@ -439,8 +443,8 @@ fn run(opts: RunOpts) {
         send_tx(
             address.clone(),
             key_id,
-            kms_port.clone(),
-            controller_port.clone(),
+            kms_address.clone(),
+            controller_address.clone(),
             invalid_vub_tx2(start_block_number, chain_id.clone()),
         ),
         "Invalid valid_until_block".to_owned()
@@ -450,8 +454,8 @@ fn run(opts: RunOpts) {
         send_tx(
             address.clone(),
             key_id,
-            kms_port.clone(),
-            controller_port.clone(),
+            kms_address.clone(),
+            controller_address.clone(),
             invalid_value_tx(start_block_number, chain_id.clone()),
         ),
         "Invalid value".to_owned()
@@ -461,8 +465,8 @@ fn run(opts: RunOpts) {
         send_tx(
             address.clone(),
             key_id,
-            kms_port.clone(),
-            controller_port.clone(),
+            kms_address.clone(),
+            controller_address.clone(),
             invalid_chain_id_tx(start_block_number),
         ),
         "Invalid chain_id".to_owned()
@@ -472,8 +476,8 @@ fn run(opts: RunOpts) {
         send_utxo_tx(
             address.clone(),
             key_id,
-            kms_port.clone(),
-            controller_port.clone(),
+            kms_address.clone(),
+            controller_address.clone(),
             build_utxo_tx(sys_config.clone()),
         ),
         "".to_owned()
@@ -483,8 +487,8 @@ fn run(opts: RunOpts) {
         send_utxo_tx(
             address.clone(),
             key_id,
-            kms_port.clone(),
-            controller_port.clone(),
+            kms_address.clone(),
+            controller_address.clone(),
             invalid_version_utxo_tx(sys_config.clone()),
         ),
         "Invalid version".to_owned()
@@ -494,8 +498,8 @@ fn run(opts: RunOpts) {
         send_utxo_tx(
             address.clone(),
             key_id,
-            kms_port.clone(),
-            controller_port.clone(),
+            kms_address.clone(),
+            controller_address.clone(),
             invalid_lock_id_utxo_tx(sys_config.clone()),
         ),
         "Invalid lock_id".to_owned()
@@ -505,8 +509,8 @@ fn run(opts: RunOpts) {
         send_utxo_tx(
             address,
             key_id,
-            kms_port,
-            controller_port,
+            kms_address,
+            controller_address,
             invalid_pre_hash_utxo_tx(sys_config),
         ),
         "Invalid pre_tx_hash".to_owned()

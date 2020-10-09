@@ -45,12 +45,16 @@ enum SubCommand {
 /// A subcommand for run
 #[derive(Clap)]
 struct RunOpts {
-    /// Sets grpc port of kms service.
-    #[clap(short = 'k', long = "kms_port", default_value = "50005")]
-    kms_port: String,
-    /// Sets grpc port of controller service.
-    #[clap(short = 'c', long = "controller_port", default_value = "50004")]
-    controller_port: String,
+    /// Sets grpc address of kms service.
+    #[clap(short = 'k', long = "kms_address", default_value = "localhost:50005")]
+    kms_address: String,
+    /// Sets grpc address of controller service.
+    #[clap(
+        short = 'c',
+        long = "controller_address",
+        default_value = "localhost:50004"
+    )]
+    controller_address: String,
     /// Sets thread number of send tx.
     #[clap(short = 't', long = "thread_num", default_value = "4")]
     thread_num: String,
@@ -72,8 +76,11 @@ fn main() {
         SubCommand::Run(opts) => {
             // init log4rs
             log4rs::init_file("tools-log4rs.yaml", Default::default()).unwrap();
-            info!("grpc port of kms service: {}", opts.kms_port);
-            info!("grpc port of controller service: {}", opts.controller_port);
+            info!("grpc port of kms service: {}", opts.kms_address);
+            info!(
+                "grpc port of controller service: {}",
+                opts.controller_address
+            );
             info!("thread number to send tx: {}", opts.thread_num);
             info!("tx number per thread to send: {}", opts.tx_num_per_thread);
             run(opts);
@@ -112,16 +119,16 @@ fn build_tx(data: Vec<u8>, start_block_number: u64, chain_id: Vec<u8>) -> Transa
 fn send_tx(
     address: Vec<u8>,
     key_id: u64,
-    kms_port: String,
-    controller_port: String,
+    kms_address: String,
+    controller_address: String,
     tx_num_per_thread: u64,
     start_block_number: u64,
     chain_id: Vec<u8>,
 ) -> Vec<Vec<u8>> {
     let mut rt = Runtime::new().unwrap();
 
-    let kms_addr = format!("http://127.0.0.1:{}", kms_port);
-    let controller_addr = format!("http://127.0.0.1:{}", controller_port);
+    let kms_addr = format!("http://{}", kms_address);
+    let controller_addr = format!("http://{}", controller_address);
 
     let mut kms_client = rt.block_on(KmsServiceClient::connect(kms_addr)).unwrap();
     let mut rpc_client = rt
@@ -186,15 +193,15 @@ fn run(opts: RunOpts) {
     let thread_num = opts.thread_num.parse::<u64>().unwrap();
     let tx_num_per_thread = opts.tx_num_per_thread.parse::<u64>().unwrap();
     let total_tx = thread_num * tx_num_per_thread;
-    let kms_port = opts.kms_port;
-    let controller_port = opts.controller_port;
+    let kms_address = opts.kms_address;
+    let controller_address = opts.controller_address;
 
     let mut thread_handlers = Vec::new();
 
     let mut rt = Runtime::new().unwrap();
 
-    let kms_addr = format!("http://127.0.0.1:{}", kms_port);
-    let controller_addr = format!("http://127.0.0.1:{}", controller_port);
+    let kms_addr = format!("http://{}", kms_address);
+    let controller_addr = format!("http://{}", controller_address);
 
     let mut kms_client = rt.block_on(KmsServiceClient::connect(kms_addr)).unwrap();
     let mut rpc_client = rt
@@ -227,16 +234,16 @@ fn run(opts: RunOpts) {
 
     info!("start send tx {} with {} thread", total_tx, thread_num);
     for _ in 0..thread_num {
-        let kms_port = kms_port.clone();
+        let kms_address = kms_address.clone();
         let address = address.clone();
-        let controller_port = controller_port.clone();
+        let controller_address = controller_address.clone();
         let chain_id = chain_id.clone();
         let handler = thread::spawn(move || {
             send_tx(
                 address.clone(),
                 key_id,
-                kms_port.clone(),
-                controller_port.clone(),
+                kms_address.clone(),
+                controller_address.clone(),
                 tx_num_per_thread,
                 start_block_number,
                 chain_id,
