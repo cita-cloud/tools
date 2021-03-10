@@ -133,7 +133,7 @@ fn send_utxo_tx(
     controller_address: String,
     tx: UtxoTransaction,
 ) -> String {
-    let mut rt = Runtime::new().unwrap();
+    let rt = Runtime::new().unwrap();
 
     let kms_addr = format!("http://{}", kms_address);
     let controller_addr = format!("http://{}", controller_address);
@@ -147,7 +147,6 @@ fn send_utxo_tx(
     let mut tx_bytes = Vec::new();
     tx.encode(&mut tx_bytes).unwrap();
     let request = HashDataRequest {
-        key_id,
         data: tx_bytes,
     };
     let ret = rt.block_on(kms_client.hash_data(request)).unwrap();
@@ -287,7 +286,7 @@ fn send_tx(
     controller_address: String,
     tx: Transaction,
 ) -> String {
-    let mut rt = Runtime::new().unwrap();
+    let rt = Runtime::new().unwrap();
 
     let kms_addr = format!("http://{}", kms_address);
     let controller_addr = format!("http://{}", controller_address);
@@ -301,7 +300,6 @@ fn send_tx(
     let mut tx_bytes = Vec::new();
     tx.encode(&mut tx_bytes).unwrap();
     let request = HashDataRequest {
-        key_id,
         data: tx_bytes,
     };
     let ret = rt.block_on(kms_client.hash_data(request)).unwrap();
@@ -347,7 +345,7 @@ fn run(opts: RunOpts) {
     let kms_address = opts.kms_address;
     let controller_address = opts.controller_address;
 
-    let mut rt = Runtime::new().unwrap();
+    let rt = Runtime::new().unwrap();
 
     let kms_addr = format!("http://{}", kms_address.clone());
     let controller_addr = format!("http://{}", controller_address.clone());
@@ -359,7 +357,6 @@ fn run(opts: RunOpts) {
 
     // generate_key_pair for sign tx
     let request = Request::new(GenerateKeyPairRequest {
-        crypt_type: 1,
         description: "test".to_owned(),
     });
     let ret = rt.block_on(kms_client.generate_key_pair(request)).unwrap();

@@ -125,7 +125,7 @@ fn send_tx(
     start_block_number: u64,
     chain_id: Vec<u8>,
 ) -> Vec<Vec<u8>> {
-    let mut rt = Runtime::new().unwrap();
+    let rt = Runtime::new().unwrap();
 
     let kms_addr = format!("http://{}", kms_address);
     let controller_addr = format!("http://{}", controller_address);
@@ -150,7 +150,6 @@ fn send_tx(
         let mut tx_bytes = Vec::new();
         tx.encode(&mut tx_bytes).unwrap();
         let request = HashDataRequest {
-            key_id,
             data: tx_bytes,
         };
         let ret = rt.block_on(kms_client.hash_data(request)).unwrap();
@@ -198,7 +197,7 @@ fn run(opts: RunOpts) {
 
     let mut thread_handlers = Vec::new();
 
-    let mut rt = Runtime::new().unwrap();
+    let rt = Runtime::new().unwrap();
 
     let kms_addr = format!("http://{}", kms_address);
     let controller_addr = format!("http://{}", controller_address);
@@ -210,7 +209,6 @@ fn run(opts: RunOpts) {
 
     // generate_key_pair for sign tx
     let request = Request::new(GenerateKeyPairRequest {
-        crypt_type: 1,
         description: "test".to_owned(),
     });
     let ret = rt.block_on(kms_client.generate_key_pair(request)).unwrap();
@@ -259,6 +257,8 @@ fn run(opts: RunOpts) {
     }
 
     assert_eq!(all_hash_list.len() as u64, total_tx);
+
+
 
     for hash in all_hash_list {
         // get transaction by hash
