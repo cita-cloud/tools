@@ -100,6 +100,7 @@ use cita_cloud_proto::kms::{
 };
 use prost::Message;
 use rand::Rng;
+use std::io::Write;
 use std::time::Duration;
 use tonic::Request;
 
@@ -149,9 +150,7 @@ fn send_tx(
         // calc tx hash
         let mut tx_bytes = Vec::new();
         tx.encode(&mut tx_bytes).unwrap();
-        let request = HashDataRequest {
-            data: tx_bytes,
-        };
+        let request = HashDataRequest { data: tx_bytes };
         let ret = rt.block_on(kms_client.hash_data(request)).unwrap();
         let tx_hash = ret.into_inner().hash;
 
@@ -258,7 +257,15 @@ fn run(opts: RunOpts) {
 
     assert_eq!(all_hash_list.len() as u64, total_tx);
 
+    let _ = std::fs::remove_file("tx_hash_list.txt");
+    let mut file = std::fs::File::create("tx_hash_list.txt").expect("Can't open tx_hash_list.txt");
 
+    for hash in all_hash_list.as_slice() {
+        let tx_hash_hex = hex::encode(hash);
+        let tx_hash_base64 = base64::encode(hash);
+        file.write_all(format!("{} {}\n", tx_hash_hex, tx_hash_base64).as_bytes())
+            .expect("write failed");
+    }
 
     for hash in all_hash_list {
         // get transaction by hash

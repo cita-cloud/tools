@@ -64,3 +64,4 @@ logs/
 *.db
 
 test-chain/
+tx_hash_list.txt

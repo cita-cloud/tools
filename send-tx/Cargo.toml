@@ -10,7 +10,7 @@ edition = "2018"
 
 [dependencies]
 log = "*"
-log4rs = "*"
+log4rs = { version = "*", features = ["default", "gzip"] }
 clap = "3.0.0-beta.2"
 git-version = "*"
 tonic = "*"
@@ -18,4 +18,5 @@ prost = "*"
 tokio = { version = "*", features = ["full"] }
 cita_cloud_proto = { git = "https://github.com/cita-cloud/cita_cloud_proto" }
 rand = "*"
-
+hex = "*"
+base64 = "*"

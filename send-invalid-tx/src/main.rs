@@ -146,9 +146,7 @@ fn send_utxo_tx(
     // calc tx hash
     let mut tx_bytes = Vec::new();
     tx.encode(&mut tx_bytes).unwrap();
-    let request = HashDataRequest {
-        data: tx_bytes,
-    };
+    let request = HashDataRequest { data: tx_bytes };
     let ret = rt.block_on(kms_client.hash_data(request)).unwrap();
     let tx_hash = ret.into_inner().hash;
 
@@ -299,9 +297,7 @@ fn send_tx(
     // calc tx hash
     let mut tx_bytes = Vec::new();
     tx.encode(&mut tx_bytes).unwrap();
-    let request = HashDataRequest {
-        data: tx_bytes,
-    };
+    let request = HashDataRequest { data: tx_bytes };
     let ret = rt.block_on(kms_client.hash_data(request)).unwrap();
     let tx_hash = ret.into_inner().hash;
 
