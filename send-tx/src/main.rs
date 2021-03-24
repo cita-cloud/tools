@@ -107,7 +107,7 @@ use tonic::Request;
 fn build_tx(data: Vec<u8>, start_block_number: u64, chain_id: Vec<u8>) -> Transaction {
     Transaction {
         version: 0,
-        to: vec![1u8; 21],
+        to: vec![1u8; 20],
         nonce: "test".to_owned(),
         quota: 300_000,
         valid_until_block: start_block_number + 99,

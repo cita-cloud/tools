@@ -94,7 +94,7 @@ fn build_utxo_tx(sys_config: SystemConfig) -> UtxoTransaction {
     UtxoTransaction {
         version: sys_config.version,
         pre_tx_hash: sys_config.admin_pre_hash,
-        output: vec![1u8; 21],
+        output: vec![1u8; 20],
         lock_id: 1_002,
     }
 }
@@ -103,7 +103,7 @@ fn invalid_version_utxo_tx(sys_config: SystemConfig) -> UtxoTransaction {
     UtxoTransaction {
         version: sys_config.version + 1,
         pre_tx_hash: sys_config.admin_pre_hash,
-        output: vec![1u8; 21],
+        output: vec![1u8; 20],
         lock_id: 1_002,
     }
 }
@@ -112,7 +112,7 @@ fn invalid_lock_id_utxo_tx(sys_config: SystemConfig) -> UtxoTransaction {
     UtxoTransaction {
         version: sys_config.version,
         pre_tx_hash: sys_config.admin_pre_hash,
-        output: vec![1u8; 21],
+        output: vec![1u8; 20],
         lock_id: 1_005,
     }
 }
@@ -121,7 +121,7 @@ fn invalid_pre_hash_utxo_tx(sys_config: SystemConfig) -> UtxoTransaction {
     UtxoTransaction {
         version: sys_config.version,
         pre_tx_hash: vec![0u8],
-        output: vec![2u8; 21],
+        output: vec![2u8; 20],
         lock_id: 1_002,
     }
 }
@@ -189,7 +189,7 @@ fn send_utxo_tx(
 fn build_tx(start_block_number: u64, chain_id: Vec<u8>) -> Transaction {
     Transaction {
         version: 0,
-        to: vec![1u8; 21],
+        to: vec![1u8; 20],
         nonce: "test".to_owned(),
         quota: 300_000,
         valid_until_block: start_block_number + 80,
@@ -202,7 +202,7 @@ fn build_tx(start_block_number: u64, chain_id: Vec<u8>) -> Transaction {
 fn invalid_version_tx(start_block_number: u64, chain_id: Vec<u8>) -> Transaction {
     Transaction {
         version: 1,
-        to: vec![1u8; 21],
+        to: vec![1u8; 20],
         nonce: "test".to_owned(),
         quota: 300_000,
         valid_until_block: start_block_number + 80,
@@ -215,7 +215,7 @@ fn invalid_version_tx(start_block_number: u64, chain_id: Vec<u8>) -> Transaction
 fn invalid_nonce_tx(start_block_number: u64, chain_id: Vec<u8>) -> Transaction {
     Transaction {
         version: 0,
-        to: vec![1u8; 21],
+        to: vec![1u8; 20],
         nonce: "1testtesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttest".to_owned(),
         quota: 300_000,
         valid_until_block: start_block_number + 80,
@@ -228,7 +228,7 @@ fn invalid_nonce_tx(start_block_number: u64, chain_id: Vec<u8>) -> Transaction {
 fn invalid_vub_tx1(start_block_number: u64, chain_id: Vec<u8>) -> Transaction {
     Transaction {
         version: 0,
-        to: vec![1u8; 21],
+        to: vec![1u8; 20],
         nonce: "test".to_owned(),
         quota: 300_000,
         valid_until_block: start_block_number,
@@ -241,7 +241,7 @@ fn invalid_vub_tx1(start_block_number: u64, chain_id: Vec<u8>) -> Transaction {
 fn invalid_vub_tx2(start_block_number: u64, chain_id: Vec<u8>) -> Transaction {
     Transaction {
         version: 0,
-        to: vec![1u8; 21],
+        to: vec![1u8; 20],
         nonce: "test".to_owned(),
         quota: 300_000,
         valid_until_block: start_block_number + 200,
@@ -254,7 +254,7 @@ fn invalid_vub_tx2(start_block_number: u64, chain_id: Vec<u8>) -> Transaction {
 fn invalid_value_tx(start_block_number: u64, chain_id: Vec<u8>) -> Transaction {
     Transaction {
         version: 0,
-        to: vec![1u8; 21],
+        to: vec![1u8; 20],
         nonce: "test".to_owned(),
         quota: 300_000,
         valid_until_block: start_block_number + 80,
@@ -267,7 +267,7 @@ fn invalid_value_tx(start_block_number: u64, chain_id: Vec<u8>) -> Transaction {
 fn invalid_chain_id_tx(start_block_number: u64) -> Transaction {
     Transaction {
         version: 0,
-        to: vec![1u8; 21],
+        to: vec![1u8; 20],
         nonce: "test".to_owned(),
         quota: 300_000,
         valid_until_block: start_block_number + 80,
