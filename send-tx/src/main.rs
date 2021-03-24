@@ -43,7 +43,7 @@ enum SubCommand {
 }
 
 /// A subcommand for run
-#[derive(Clap)]
+#[derive(Clap, Clone)]
 struct RunOpts {
     /// Sets grpc address of kms service.
     #[clap(short = 'k', long = "kms_address", default_value = "localhost:50005")]
@@ -61,6 +61,15 @@ struct RunOpts {
     /// Sets number of tx per thread to send.
     #[clap(short = 'n', long = "tx_num_per_thread", default_value = "1000")]
     tx_num_per_thread: String,
+    /// Test mode, normal, create or invoke
+    #[clap(short = 'm', long = "mode", default_value = "normal")]
+    mode: String,
+    /// invoke address
+    #[clap(short = 'a', long = "address", default_value = "none")]
+    address: String,
+    /// invoke data
+    #[clap(short = 'd', long = "data", default_value = "none")]
+    data: String,
 }
 
 fn main() {
@@ -117,6 +126,41 @@ fn build_tx(data: Vec<u8>, start_block_number: u64, chain_id: Vec<u8>) -> Transa
     }
 }
 
+fn create_contract_tx(start_block_number: u64, chain_id: Vec<u8>) -> Transaction {
+    // contract at tools/send-tx/example/Counter.sol
+    let data = hex::decode("608060405234801561001057600080fd5b5060f58061001f6000396000f3006080604052600436106053576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff16806306661abd1460585780634f2be91f146080578063d826f88f146094575b600080fd5b348015606357600080fd5b50606a60a8565b6040518082815260200191505060405180910390f35b348015608b57600080fd5b50609260ae565b005b348015609f57600080fd5b5060a660c0565b005b60005481565b60016000808282540192505081905550565b600080819055505600a165627a7a72305820faa1d1f51d7b5ca2b200e0f6cdef4f2d7e44ee686209e300beb1146f40d32dee0029").unwrap();
+    let mut rng = rand::thread_rng();
+    let r: u64 = rng.gen();
+    Transaction {
+        version: 0,
+        to: Vec::new(),
+        nonce: r.to_string(),
+        quota: 3_000_000,
+        valid_until_block: start_block_number + 99,
+        data,
+        value: vec![0u8; 32],
+        chain_id,
+    }
+}
+
+fn invoke_contract_tx(
+    contract_address: &str,
+    data: &str,
+    start_block_number: u64,
+    chain_id: Vec<u8>
+) -> Transaction {
+    Transaction {
+        version: 0,
+        to: hex::decode(contract_address).unwrap(),
+        nonce: "test".to_owned(),
+        quota: 3_000_000,
+        valid_until_block: start_block_number + 99,
+        data: hex::decode(data).unwrap(),
+        value: vec![0u8; 32],
+        chain_id,
+    }
+}
+
 fn send_tx(
     address: Vec<u8>,
     key_id: u64,
@@ -125,6 +169,7 @@ fn send_tx(
     tx_num_per_thread: u64,
     start_block_number: u64,
     chain_id: Vec<u8>,
+    opts: &RunOpts,
 ) -> Vec<Vec<u8>> {
     let rt = Runtime::new().unwrap();
 
@@ -145,7 +190,15 @@ fn send_tx(
             data.push(v);
         }
 
-        let tx = build_tx(data, start_block_number, chain_id.clone());
+        let tx = match opts.mode.as_str() {
+            "normal" => build_tx(data, start_block_number, chain_id.clone()),
+            "create" => create_contract_tx(start_block_number, chain_id.clone()),
+            "invoke" => invoke_contract_tx(
+                &opts.address,
+                &opts.data, start_block_number,
+                chain_id.clone()),
+            _ => unreachable!()
+        };
 
         // calc tx hash
         let mut tx_bytes = Vec::new();
@@ -188,11 +241,11 @@ fn send_tx(
 }
 
 fn run(opts: RunOpts) {
-    let thread_num = opts.thread_num.parse::<u64>().unwrap();
-    let tx_num_per_thread = opts.tx_num_per_thread.parse::<u64>().unwrap();
+    let thread_num = opts.thread_num.clone().parse::<u64>().unwrap();
+    let tx_num_per_thread = opts.tx_num_per_thread.clone().parse::<u64>().unwrap();
     let total_tx = thread_num * tx_num_per_thread;
-    let kms_address = opts.kms_address;
-    let controller_address = opts.controller_address;
+    let kms_address = opts.kms_address.clone();
+    let controller_address = opts.controller_address.clone();
 
     let mut thread_handlers = Vec::new();
 
@@ -235,6 +288,7 @@ fn run(opts: RunOpts) {
         let address = address.clone();
         let controller_address = controller_address.clone();
         let chain_id = chain_id.clone();
+        let opts = opts.clone();
         let handler = thread::spawn(move || {
             send_tx(
                 address.clone(),
@@ -244,6 +298,7 @@ fn run(opts: RunOpts) {
                 tx_num_per_thread,
                 start_block_number,
                 chain_id,
+                &opts,
             )
         });
         thread_handlers.push(handler);
@@ -272,13 +327,12 @@ fn run(opts: RunOpts) {
         let request = Request::new(Hash { hash });
         let ret = rt.block_on(rpc_client.get_transaction(request)).unwrap();
         let raw_tx = ret.into_inner();
-        let nonce = match raw_tx.tx.unwrap() {
+        match raw_tx.tx.unwrap() {
             NormalTx(tx) => tx.transaction.unwrap().nonce,
             _ => {
                 panic!("there are no utxo tx");
             }
         };
-        assert_eq!(&nonce, "test");
     }
 
     let mut total_finalized_tx = 0;
