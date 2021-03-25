@@ -37,9 +37,22 @@ enum SubCommand {
     /// print information from git
     #[clap(name = "git")]
     GitInfo,
-    /// run this service
+    /// run this service in normal mode, send normal transaction
     #[clap(name = "run")]
     Run(RunOpts),
+    /// run this service in evm mode, make sure using executor_evm
+    #[clap(name = "evm")]
+    EVM(EVMSubCommand),
+}
+
+#[derive(Clap)]
+enum EVMSubCommand {
+    #[clap(name = "create")]
+    /// run this service in create mode, send create contract transaction
+    Create(RunOpts),
+    #[clap(name = "invoke")]
+    /// run this service in invoke mode, send invoke contract transaction
+    Invoke(RunOpts),
 }
 
 /// A subcommand for run
@@ -55,15 +68,19 @@ struct RunOpts {
         default_value = "localhost:50004"
     )]
     controller_address: String,
+    /// Sets grpc address of executor service.
+    #[clap(
+        short = 'e',
+        long = "executor_address",
+        default_value = "localhost:50002"
+    )]
+    executor_address: String,
     /// Sets thread number of send tx.
     #[clap(short = 't', long = "thread_num", default_value = "4")]
     thread_num: String,
     /// Sets number of tx per thread to send.
     #[clap(short = 'n', long = "tx_num_per_thread", default_value = "1000")]
     tx_num_per_thread: String,
-    /// Test mode, normal, create or invoke
-    #[clap(short = 'm', long = "mode", default_value = "normal")]
-    mode: String,
     /// invoke address
     #[clap(short = 'a', long = "address", default_value = "none")]
     address: String,
@@ -92,7 +109,35 @@ fn main() {
             );
             info!("thread number to send tx: {}", opts.thread_num);
             info!("tx number per thread to send: {}", opts.tx_num_per_thread);
-            run(opts);
+            run(opts, "normal");
+        }
+        SubCommand::EVM(evm) => {
+            match evm {
+                EVMSubCommand::Create(opts) => {
+                    // init log4rs
+                    log4rs::init_file("tools-log4rs.yaml", Default::default()).unwrap();
+                    info!("grpc port of kms service: {}", opts.kms_address);
+                    info!(
+                        "grpc port of controller service: {}",
+                        opts.controller_address
+                    );
+                    info!("thread number to send tx: {}", opts.thread_num);
+                    info!("tx number per thread to send: {}", opts.tx_num_per_thread);
+                    run(opts, "create");
+                }
+                EVMSubCommand::Invoke(opts) => {
+                    // init log4rs
+                    log4rs::init_file("tools-log4rs.yaml", Default::default()).unwrap();
+                    info!("grpc port of kms service: {}", opts.kms_address);
+                    info!(
+                        "grpc port of controller service: {}",
+                        opts.controller_address
+                    );
+                    info!("thread number to send tx: {}", opts.thread_num);
+                    info!("tx number per thread to send: {}", opts.tx_num_per_thread);
+                    run(opts, "invoke");
+                }
+            }
         }
     }
 }
@@ -103,6 +148,7 @@ use cita_cloud_proto::controller::raw_transaction::Tx::NormalTx;
 use cita_cloud_proto::controller::{
     raw_transaction::Tx, rpc_service_client::RpcServiceClient, BlockNumber, Flag, RawTransaction,
 };
+use cita_cloud_proto::evm::rpc_service_client::RpcServiceClient as EVMRpcServiceClient;
 use cita_cloud_proto::kms::{
     kms_service_client::KmsServiceClient, GenerateKeyPairRequest, HashDataRequest,
     SignMessageRequest,
@@ -126,9 +172,7 @@ fn build_tx(data: Vec<u8>, start_block_number: u64, chain_id: Vec<u8>) -> Transa
     }
 }
 
-fn create_contract_tx(start_block_number: u64, chain_id: Vec<u8>) -> Transaction {
-    // contract at tools/send-tx/example/Counter.sol
-    let data = hex::decode("608060405234801561001057600080fd5b5060f58061001f6000396000f3006080604052600436106053576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff16806306661abd1460585780634f2be91f146080578063d826f88f146094575b600080fd5b348015606357600080fd5b50606a60a8565b6040518082815260200191505060405180910390f35b348015608b57600080fd5b50609260ae565b005b348015609f57600080fd5b5060a660c0565b005b60005481565b60016000808282540192505081905550565b600080819055505600a165627a7a72305820faa1d1f51d7b5ca2b200e0f6cdef4f2d7e44ee686209e300beb1146f40d32dee0029").unwrap();
+fn create_contract_tx(data: &str, start_block_number: u64, chain_id: Vec<u8>) -> Transaction {
     let mut rng = rand::thread_rng();
     let r: u64 = rng.gen();
     Transaction {
@@ -137,7 +181,7 @@ fn create_contract_tx(start_block_number: u64, chain_id: Vec<u8>) -> Transaction
         nonce: r.to_string(),
         quota: 3_000_000,
         valid_until_block: start_block_number + 99,
-        data,
+        data: hex::decode(data).unwrap(),
         value: vec![0u8; 32],
         chain_id,
     }
@@ -147,7 +191,7 @@ fn invoke_contract_tx(
     contract_address: &str,
     data: &str,
     start_block_number: u64,
-    chain_id: Vec<u8>
+    chain_id: Vec<u8>,
 ) -> Transaction {
     Transaction {
         version: 0,
@@ -170,6 +214,7 @@ fn send_tx(
     start_block_number: u64,
     chain_id: Vec<u8>,
     opts: &RunOpts,
+    mode: &str,
 ) -> Vec<Vec<u8>> {
     let rt = Runtime::new().unwrap();
 
@@ -190,14 +235,16 @@ fn send_tx(
             data.push(v);
         }
 
-        let tx = match opts.mode.as_str() {
+        let tx = match mode {
             "normal" => build_tx(data, start_block_number, chain_id.clone()),
-            "create" => create_contract_tx(start_block_number, chain_id.clone()),
+            "create" => create_contract_tx(&opts.data, start_block_number, chain_id.clone()),
             "invoke" => invoke_contract_tx(
                 &opts.address,
-                &opts.data, start_block_number,
-                chain_id.clone()),
-            _ => unreachable!()
+                &opts.data,
+                start_block_number,
+                chain_id.clone(),
+            ),
+            _ => unreachable!(),
         };
 
         // calc tx hash
@@ -240,7 +287,7 @@ fn send_tx(
     tx_hash_list
 }
 
-fn run(opts: RunOpts) {
+fn run(opts: RunOpts, mode: &'static str) {
     let thread_num = opts.thread_num.clone().parse::<u64>().unwrap();
     let tx_num_per_thread = opts.tx_num_per_thread.clone().parse::<u64>().unwrap();
     let total_tx = thread_num * tx_num_per_thread;
@@ -299,6 +346,7 @@ fn run(opts: RunOpts) {
                 start_block_number,
                 chain_id,
                 &opts,
+                mode,
             )
         });
         thread_handlers.push(handler);
@@ -322,9 +370,9 @@ fn run(opts: RunOpts) {
             .expect("write failed");
     }
 
-    for hash in all_hash_list {
+    for hash in all_hash_list.as_slice() {
         // get transaction by hash
-        let request = Request::new(Hash { hash });
+        let request = Request::new(Hash { hash: hash.clone() });
         let ret = rt.block_on(rpc_client.get_transaction(request)).unwrap();
         let raw_tx = ret.into_inner();
         match raw_tx.tx.unwrap() {
@@ -360,6 +408,22 @@ fn run(opts: RunOpts) {
         }
 
         if total_finalized_tx as u64 == total_tx {
+            if total_tx == 1 {
+                let executor_address = opts.executor_address.clone();
+                let executor_addr = format!("http://{}", executor_address);
+                let mut exe_rpc_client = rt
+                    .block_on(EVMRpcServiceClient::connect(executor_addr))
+                    .unwrap();
+
+                let request = Request::new(Hash {
+                    hash: all_hash_list[0].clone(),
+                });
+                let ret = rt
+                    .block_on(exe_rpc_client.get_transaction_receipt(request))
+                    .unwrap();
+                let receipt = ret.into_inner();
+                info!("{:x?}", receipt)
+            }
             break;
         }
 
