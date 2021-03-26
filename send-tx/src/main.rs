@@ -53,6 +53,9 @@ enum EVMSubCommand {
     #[clap(name = "invoke")]
     /// run this service in invoke mode, send invoke contract transaction
     Invoke(RunOpts),
+    #[clap(name = "call")]
+    /// run this service in call mode, send call contract request
+    Call(CallOpts),
 }
 
 /// A subcommand for run
@@ -94,14 +97,14 @@ fn main() {
 
     let opts: Opts = Opts::parse();
 
+    log4rs::init_file("tools-log4rs.yaml", Default::default()).unwrap();
+
     match opts.subcmd {
         SubCommand::GitInfo => {
             println!("git version: {}", GIT_VERSION);
             println!("homepage: {}", GIT_HOMEPAGE);
         }
         SubCommand::Run(opts) => {
-            // init log4rs
-            log4rs::init_file("tools-log4rs.yaml", Default::default()).unwrap();
             info!("grpc port of kms service: {}", opts.kms_address);
             info!(
                 "grpc port of controller service: {}",
@@ -111,37 +114,39 @@ fn main() {
             info!("tx number per thread to send: {}", opts.tx_num_per_thread);
             run(opts, "normal");
         }
-        SubCommand::EVM(evm) => {
-            match evm {
-                EVMSubCommand::Create(opts) => {
-                    // init log4rs
-                    log4rs::init_file("tools-log4rs.yaml", Default::default()).unwrap();
-                    info!("grpc port of kms service: {}", opts.kms_address);
-                    info!(
-                        "grpc port of controller service: {}",
-                        opts.controller_address
-                    );
-                    info!("thread number to send tx: {}", opts.thread_num);
-                    info!("tx number per thread to send: {}", opts.tx_num_per_thread);
-                    run(opts, "create");
-                }
-                EVMSubCommand::Invoke(opts) => {
-                    // init log4rs
-                    log4rs::init_file("tools-log4rs.yaml", Default::default()).unwrap();
-                    info!("grpc port of kms service: {}", opts.kms_address);
-                    info!(
-                        "grpc port of controller service: {}",
-                        opts.controller_address
-                    );
-                    info!("thread number to send tx: {}", opts.thread_num);
-                    info!("tx number per thread to send: {}", opts.tx_num_per_thread);
-                    run(opts, "invoke");
-                }
+        SubCommand::EVM(evm) => match evm {
+            EVMSubCommand::Create(opts) => {
+                info!("grpc port of kms service: {}", opts.kms_address);
+                info!(
+                    "grpc port of controller service: {}",
+                    opts.controller_address
+                );
+                info!("grpc port of executor service: {}", opts.executor_address);
+                info!("thread number to send tx: {}", opts.thread_num);
+                info!("tx number per thread to send: {}", opts.tx_num_per_thread);
+                run(opts, "create");
             }
-        }
+            EVMSubCommand::Invoke(opts) => {
+                info!("grpc port of kms service: {}", opts.kms_address);
+                info!(
+                    "grpc port of controller service: {}",
+                    opts.controller_address
+                );
+                info!("grpc port of executor service: {}", opts.executor_address);
+                info!("thread number to send tx: {}", opts.thread_num);
+                info!("tx number per thread to send: {}", opts.tx_num_per_thread);
+                run(opts, "invoke");
+            }
+            EVMSubCommand::Call(opts) => {
+                info!("grpc port of executor service: {}", opts.executor_address);
+
+                call_tx(opts);
+            }
+        },
     }
 }
 
+use crate::evm::{call_tx, CallOpts};
 use cita_cloud_proto::blockchain::{Transaction, UnverifiedTransaction, Witness};
 use cita_cloud_proto::common::{Empty, Hash};
 use cita_cloud_proto::controller::raw_transaction::Tx::NormalTx;
@@ -430,3 +435,5 @@ fn run(opts: RunOpts, mode: &'static str) {
         start_block_number = end_block_number;
     }
 }
+
+mod evm;
