@@ -375,19 +375,6 @@ fn run(opts: RunOpts, mode: &'static str) {
             .expect("write failed");
     }
 
-    for hash in all_hash_list.as_slice() {
-        // get transaction by hash
-        let request = Request::new(Hash { hash: hash.clone() });
-        let ret = rt.block_on(rpc_client.get_transaction(request)).unwrap();
-        let raw_tx = ret.into_inner();
-        match raw_tx.tx.unwrap() {
-            NormalTx(tx) => tx.transaction.unwrap().nonce,
-            _ => {
-                panic!("there are no utxo tx");
-            }
-        };
-    }
-
     let mut total_finalized_tx = 0;
     loop {
         thread::sleep(Duration::new(10, 0));
@@ -404,12 +391,26 @@ fn run(opts: RunOpts, mode: &'static str) {
                 .block_on(rpc_client.get_block_by_number(request))
                 .unwrap();
             let block = ret.into_inner();
+            let timestamp = block.header.unwrap().timestamp;
             let block_tx_size = block.body.unwrap().tx_hashes.len();
             total_finalized_tx += block_tx_size;
             info!(
-                "height {} block include {} txs, total finalized tx {}",
-                h, block_tx_size, total_finalized_tx
+                "height {} block timestamp {} include {} txs, total finalized tx {}",
+                h, timestamp, block_tx_size, total_finalized_tx
             );
+
+            for hash in block.body.unwrap().tx_hashes.as_slice() { 
+                // get transaction by hash
+                let request = Request::new(Hash { hash: hash.clone() });
+                let ret = rt.block_on(rpc_client.get_transaction(request)).unwrap();
+                let raw_tx = ret.into_inner();
+                match raw_tx.tx.unwrap() {
+                    NormalTx(tx) => tx.transaction.unwrap().nonce,
+                    _ => {
+                        panic!("there are no utxo tx");
+                    }
+                };
+            }
         }
 
         if total_finalized_tx as u64 == total_tx {
