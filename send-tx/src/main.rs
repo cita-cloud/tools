@@ -293,8 +293,8 @@ fn send_tx(
 }
 
 fn run(opts: RunOpts, mode: &'static str) {
-    let thread_num = opts.thread_num.clone().parse::<u64>().unwrap();
-    let tx_num_per_thread = opts.tx_num_per_thread.clone().parse::<u64>().unwrap();
+    let thread_num = opts.thread_num.parse::<u64>().unwrap();
+    let tx_num_per_thread = opts.tx_num_per_thread.parse::<u64>().unwrap();
     let total_tx = thread_num * tx_num_per_thread;
     let kms_address = opts.kms_address.clone();
     let controller_address = opts.controller_address.clone();
@@ -416,7 +416,7 @@ fn run(opts: RunOpts, mode: &'static str) {
 
         if total_finalized_tx as u64 == total_tx {
             if total_tx == 1 {
-                let executor_address = opts.executor_address.clone();
+                let executor_address = opts.executor_address;
                 let executor_addr = format!("http://{}", executor_address);
                 let mut exe_rpc_client = rt
                     .block_on(EVMRpcServiceClient::connect(executor_addr))
