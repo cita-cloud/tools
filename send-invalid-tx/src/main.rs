@@ -54,6 +54,8 @@ struct RunOpts {
         default_value = "localhost:50004"
     )]
     controller_address: String,
+    #[clap(short = 'i', long = "admin_key_id")]
+    admin_key_id: u64,
 }
 
 fn main() {
@@ -70,7 +72,11 @@ fn main() {
             // init log4rs
             log4rs::init_file("tools-log4rs.yaml", Default::default()).unwrap();
             info!("grpc address of kms service: {}", opts.kms_address);
-            info!("grpc address of controller service: {}", opts.kms_address);
+            info!(
+                "grpc address of controller service: {}",
+                opts.controller_address
+            );
+            info!("admin key_id: {}", opts.admin_key_id);
             run(opts);
         }
     }
@@ -340,11 +346,12 @@ fn send_tx(
 fn run(opts: RunOpts) {
     let kms_address = opts.kms_address;
     let controller_address = opts.controller_address;
+    let admin_key_id = opts.admin_key_id;
 
     let rt = Runtime::new().unwrap();
 
-    let kms_addr = format!("http://{}", kms_address.clone());
-    let controller_addr = format!("http://{}", controller_address.clone());
+    let kms_addr = format!("http://{}", kms_address);
+    let controller_addr = format!("http://{}", controller_address);
 
     let mut kms_client = rt.block_on(KmsServiceClient::connect(kms_addr)).unwrap();
     let mut rpc_client = rt
@@ -373,6 +380,7 @@ fn run(opts: RunOpts) {
     let ret = rt.block_on(rpc_client.get_system_config(request)).unwrap();
     let sys_config = ret.into_inner();
     let chain_id = sys_config.chain_id.clone();
+    let admin = sys_config.admin.clone();
     info!("sys_config is {:?} before start", sys_config);
 
     // ok
@@ -449,14 +457,14 @@ fn run(opts: RunOpts) {
             key_id,
             kms_address.clone(),
             controller_address.clone(),
-            invalid_value_tx(start_block_number, chain_id.clone()),
+            invalid_value_tx(start_block_number, chain_id),
         ),
         "Invalid value".to_owned()
     );
 
     assert_eq!(
         send_tx(
-            address.clone(),
+            address,
             key_id,
             kms_address.clone(),
             controller_address.clone(),
@@ -467,8 +475,8 @@ fn run(opts: RunOpts) {
 
     assert_eq!(
         send_utxo_tx(
-            address.clone(),
-            key_id,
+            admin.clone(),
+            admin_key_id,
             kms_address.clone(),
             controller_address.clone(),
             build_utxo_tx(sys_config.clone()),
@@ -478,8 +486,8 @@ fn run(opts: RunOpts) {
 
     assert_eq!(
         send_utxo_tx(
-            address.clone(),
-            key_id,
+            admin.clone(),
+            admin_key_id,
             kms_address.clone(),
             controller_address.clone(),
             invalid_version_utxo_tx(sys_config.clone()),
@@ -489,8 +497,8 @@ fn run(opts: RunOpts) {
 
     assert_eq!(
         send_utxo_tx(
-            address.clone(),
-            key_id,
+            admin.clone(),
+            admin_key_id,
             kms_address.clone(),
             controller_address.clone(),
             invalid_lock_id_utxo_tx(sys_config.clone()),
@@ -500,8 +508,8 @@ fn run(opts: RunOpts) {
 
     assert_eq!(
         send_utxo_tx(
-            address,
-            key_id,
+            admin,
+            admin_key_id,
             kms_address,
             controller_address,
             invalid_pre_hash_utxo_tx(sys_config),
