@@ -1,5 +1,6 @@
 [workspace]
 members = ["send-tx",
 "send-invalid-tx",
-"emergency_brake"
+"emergency_brake",
+"update_admin"
 ]
