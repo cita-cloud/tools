@@ -58,7 +58,9 @@ pub fn call_tx(opts: CallOpts) {
         method: hex::decode(opts.data).unwrap(),
         args: Vec::new(),
     });
-    let ret = rt.block_on(executor_client.call(request)).unwrap();
+    match rt.block_on(executor_client.call(request)) {
+        Ok(ret) => info!("call result: {}", hex::encode(ret.into_inner().value)),
+        Err(e) => info!("call revert: {:?}", e),
+    }
 
-    info!("call result: {}", hex::encode(ret.into_inner().value));
 }
