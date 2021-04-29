@@ -62,5 +62,4 @@ pub fn call_tx(opts: CallOpts) {
         Ok(ret) => info!("call result: {}", hex::encode(ret.into_inner().value)),
         Err(e) => info!("call revert: {:?}", e),
     }
-
 }

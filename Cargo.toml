@@ -3,5 +3,6 @@ members = ["send-tx",
 "send-invalid-tx",
 "emergency_brake",
 "update_admin",
-"update_validators"
+"update_validators",
+"set_block_interval"
 ]

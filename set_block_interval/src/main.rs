@@ -36,9 +36,9 @@ enum SubCommand {
     /// print information from git
     #[clap(name = "git")]
     GitInfo,
-    /// update validators
-    #[clap(name = "update")]
-    Update(RunOpts),
+    /// set block interval
+    #[clap(name = "set")]
+    Set(RunOpts),
 }
 
 /// A subcommand for run
@@ -56,8 +56,8 @@ struct RunOpts {
     controller_address: String,
     #[clap(short = 'i', long = "admin_key_id")]
     admin_key_id: u64,
-    #[clap(short = 'v', long = "validators")]
-    validators: String,
+    #[clap(short = 'b', long = "block_interval")]
+    block_interval: u32,
 }
 
 fn main() {
@@ -70,7 +70,7 @@ fn main() {
             println!("git version: {}", GIT_VERSION);
             println!("homepage: {}", GIT_HOMEPAGE);
         }
-        SubCommand::Update(opts) => {
+        SubCommand::Set(opts) => {
             // init log4rs
             log4rs::init_file("tools-log4rs.yaml", Default::default()).unwrap();
             info!("grpc address of kms service: {}", opts.kms_address);
@@ -79,7 +79,7 @@ fn main() {
                 opts.controller_address
             );
             info!("admin key_id: {}", opts.admin_key_id);
-            info!("new validators: {}", opts.validators);
+            info!("new block_interval: {}", opts.block_interval);
             run(opts);
         }
     }
@@ -101,9 +101,9 @@ use tonic::Request;
 fn build_utxo_tx(sys_config: SystemConfig, output: Vec<u8>) -> UtxoTransaction {
     UtxoTransaction {
         version: sys_config.version,
-        pre_tx_hash: sys_config.validators_pre_hash,
+        pre_tx_hash: sys_config.block_interval_pre_hash,
         output,
-        lock_id: 1_004,
+        lock_id: 1_003,
     }
 }
 
@@ -169,15 +169,7 @@ fn run(opts: RunOpts) {
     let controller_address = opts.controller_address;
     let admin_key_id = opts.admin_key_id;
 
-    let validator_list = opts.validators.split(',');
-    let mut validators = vec![];
-    for v in validator_list {
-        let addr = hex::decode(&v[2..]).expect("parsing validator_address failed!");
-        if addr.len() != 20 {
-            panic!("invalid validator_address")
-        }
-        validators.extend_from_slice(&addr);
-    }
+    let block_interval = opts.block_interval.to_be_bytes().to_vec();
 
     let rt = Runtime::new().unwrap();
 
@@ -204,7 +196,7 @@ fn run(opts: RunOpts) {
         admin_key_id,
         kms_address,
         controller_address,
-        build_utxo_tx(sys_config, validators),
+        build_utxo_tx(sys_config, block_interval),
     );
 
     if let Some(tx_hash) = ret {
