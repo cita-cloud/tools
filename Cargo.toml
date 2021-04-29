@@ -2,5 +2,6 @@
 members = ["send-tx",
 "send-invalid-tx",
 "emergency_brake",
-"update_admin"
+"update_admin",
+"update_validators"
 ]
