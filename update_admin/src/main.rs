@@ -169,7 +169,7 @@ fn run(opts: RunOpts) {
     let controller_address = opts.controller_address;
     let admin_key_id = opts.admin_key_id;
     let admin_address = opts.admin_address;
-    let addr = hex::decode(&admin_address[2..]).expect("parsing admin_address in genesis failed!");
+    let addr = hex::decode(&admin_address[2..]).expect("parsing admin_address failed!");
     if addr.len() != 20 {
         panic!("invalid admin_address")
     }
