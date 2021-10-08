@@ -3,7 +3,7 @@ members = [
     "crypto",
     "send-tx",
     "send-invalid-tx",
-    "emergency_brake"
+    "emergency_brake",
     "update_admin",
     "update_validators",
     "set_block_interval"
