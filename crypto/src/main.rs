@@ -37,7 +37,7 @@ fn main() {
         SubCommand::Signature(config) => {
             let key_pair = efficient_sm2::KeyPair::new(&hex::decode(&config.private_key).unwrap()).unwrap();
             let signature = key_pair.sign(&hex::decode(&config.content).unwrap()).unwrap();
-            println!("{}{}", hex::encode(signature.s()), hex::encode(signature.r()));
+            println!("{}{}", hex::encode(signature.r()), hex::encode(signature.s()));
         }
     }
 }
